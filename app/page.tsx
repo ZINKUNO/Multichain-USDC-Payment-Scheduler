@@ -4,11 +4,12 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Wallet, Send, Clock, TrendingDown, CheckCircle, AlertCircle } from "lucide-react"
+import { Wallet, Send, Clock, TrendingDown, CheckCircle, AlertCircle, Play } from "lucide-react"
 import { MetaMaskConnector } from "./components/metamask-connector"
 import { PaymentScheduler } from "./components/payment-scheduler"
 import { FeeOptimizer } from "./components/fee-optimizer"
 import { PaymentHistory } from "./components/payment-history"
+import { PaymentExecutor } from "./components/payment-executor"
 import { useWallet } from "./hooks/use-wallet"
 
 export default function USDCPaymentScheduler() {
@@ -37,7 +38,7 @@ export default function USDCPaymentScheduler() {
         {/* Main Content */}
         {isConnected ? (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="schedule" className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
                 Schedule
@@ -46,13 +47,17 @@ export default function USDCPaymentScheduler() {
                 <TrendingDown className="w-4 h-4" />
                 Optimize
               </TabsTrigger>
+              <TabsTrigger value="execute" className="flex items-center gap-2">
+                <Play className="w-4 h-4" />
+                Execute
+              </TabsTrigger>
               <TabsTrigger value="history" className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4" />
                 History
               </TabsTrigger>
-              <TabsTrigger value="execute" className="flex items-center gap-2">
+              <TabsTrigger value="deploy" className="flex items-center gap-2">
                 <Send className="w-4 h-4" />
-                Execute
+                Deploy
               </TabsTrigger>
             </TabsList>
 
@@ -64,24 +69,65 @@ export default function USDCPaymentScheduler() {
               <FeeOptimizer />
             </TabsContent>
 
+            <TabsContent value="execute">
+              <PaymentExecutor />
+            </TabsContent>
+
             <TabsContent value="history">
               <PaymentHistory />
             </TabsContent>
 
-            <TabsContent value="execute">
+            <TabsContent value="deploy">
               <Card>
                 <CardHeader>
-                  <CardTitle>Execute Payments</CardTitle>
-                  <CardDescription>Manually execute scheduled payments (Demo mode)</CardDescription>
+                  <CardTitle>Smart Contract Deployment</CardTitle>
+                  <CardDescription>Deploy and manage smart contracts across multiple chains</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      In production, payments would be executed automatically using Chainlink Automation. For this demo,
-                      you can manually trigger payment execution.
+                      <strong>Demo Mode:</strong> Smart contracts are pre-deployed on testnets. In production, this tab
+                      would allow deploying contracts to new chains and managing existing deployments.
                     </AlertDescription>
                   </Alert>
+
+                  <div className="mt-4 space-y-4">
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-500" />
+                            <h3 className="font-semibold">Ethereum Sepolia</h3>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">Contract: 0x...deployed</p>
+                          <p className="text-sm text-green-600">✅ Active</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-3 h-3 rounded-full bg-purple-500" />
+                            <h3 className="font-semibold">Polygon Mumbai</h3>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">Contract: 0x...deployed</p>
+                          <p className="text-sm text-green-600">✅ Active</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-3 h-3 rounded-full bg-orange-500" />
+                            <h3 className="font-semibold">Arbitrum Sepolia</h3>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">Contract: 0x...deployed</p>
+                          <p className="text-sm text-green-600">✅ Active</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
