@@ -1,456 +1,310 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Play, Clock, CheckCircle, AlertCircle, ExternalLink } from "lucide-react"
-import { useWallet } from "../hooks/use-wallet"
+import { Play, Pause, Square, CheckCircle, AlertCircle, Clock, Zap } from "lucide-react"
 
-// Contract configuration
-const CONTRACT_ADDRESSES = {
-  11155111: "0xYourSepoliaContractAddress", // Replace with actual deployed address
-  80001: "0xYourMumbaiContractAddress", // Replace with actual deployed address
-  421614: "0xYourArbitrumSepoliaContractAddress", // Replace with actual deployed address
-}
-
-const USDC_ADDRESSES = {
-  11155111: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // Sepolia USDC
-  80001: "0x0FA8781a83E468F3b7C25308B9421c0c1bE7a6B0", // Mumbai USDC
-  421614: "0x75faf114eafb1BDbe6fc3363c7f609b9d5a8f3dA", // Arbitrum Sepolia USDC
-}
-
-const CONTRACT_ABI = [
-  {
-    inputs: [{ internalType: "uint256", name: "_paymentId", type: "uint256" }],
-    name: "executePayment",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "_paymentId", type: "uint256" }],
-    name: "getPayment",
-    outputs: [
-      { internalType: "address", name: "recipient", type: "address" },
-      { internalType: "uint256", name: "amount", type: "uint256" },
-      { internalType: "uint256", name: "interval", type: "uint256" },
-      { internalType: "uint256", name: "nextExecution", type: "uint256" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "paymentCounter",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-]
-
-const USDC_ABI = [
-  {
-    constant: true,
-    inputs: [{ name: "_owner", type: "address" }],
-    name: "balanceOf",
-    outputs: [{ name: "", type: "uint256" }],
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [
-      { name: "_spender", type: "address" },
-      { name: "_value", type: "uint256" },
-    ],
-    name: "approve",
-    outputs: [{ name: "", type: "bool" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [
-      { name: "_owner", type: "address" },
-      { name: "_spender", type: "address" },
-    ],
-    name: "allowance",
-    outputs: [{ name: "", type: "uint256" }],
-    type: "function",
-  },
-]
-
-interface ScheduledPayment {
-  id: number
+interface PaymentExecution {
+  id: string
   recipient: string
   amount: string
-  interval: number
-  nextExecution: Date
-  chainId: number
-  isExecutable: boolean
+  chain: string
+  status: "pending" | "executing" | "completed" | "failed"
+  progress: number
+  txHash?: string
+  error?: string
+  estimatedTime?: number
 }
 
+const MOCK_PAYMENTS: PaymentExecution[] = [
+  {
+    id: "1",
+    recipient: "0x742d35Cc6634C0532925a3b8D4C0532925a3b8D4",
+    amount: "100.00",
+    chain: "Polygon",
+    status: "pending",
+    progress: 0,
+    estimatedTime: 30,
+  },
+  {
+    id: "2",
+    recipient: "0x8ba1f109551bD432803012645Hac136c22C177",
+    amount: "250.00",
+    chain: "Arbitrum",
+    status: "executing",
+    progress: 65,
+    txHash: "0x1234...5678",
+    estimatedTime: 15,
+  },
+  {
+    id: "3",
+    recipient: "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+    amount: "50.00",
+    chain: "Ethereum",
+    status: "completed",
+    progress: 100,
+    txHash: "0xabcd...efgh",
+  },
+]
+
 export function PaymentExecutor() {
-  const { isConnected, account, chainId, switchChain } = useWallet()
-  const [payments, setPayments] = useState<ScheduledPayment[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [executionStatus, setExecutionStatus] = useState<string>("")
-  const [executingPayments, setExecutingPayments] = useState<Set<number>>(new Set())
+  const [payments, setPayments] = useState<PaymentExecution[]>(MOCK_PAYMENTS)
+  const [globalStatus, setGlobalStatus] = useState<"idle" | "running" | "paused">("idle")
 
-  // Mock data for demo purposes
-  const mockPayments: ScheduledPayment[] = [
-    {
-      id: 1,
-      recipient: "0x742d35Cc6634C0532925a3b8D4C9db4C4b8b4b8b",
-      amount: "100",
-      interval: 3600, // 1 hour
-      nextExecution: new Date(Date.now() + 30000), // 30 seconds from now
-      chainId: 11155111,
-      isExecutable: true,
-    },
-    {
-      id: 2,
-      recipient: "0x123d35Cc6634C0532925a3b8D4C9db4C4b8b4b8b",
-      amount: "250",
-      interval: 86400, // 1 day
-      nextExecution: new Date(Date.now() + 3600000), // 1 hour from now
-      chainId: 80001,
-      isExecutable: false,
-    },
-    {
-      id: 3,
-      recipient: "0x456d35Cc6634C0532925a3b8D4C9db4C4b8b4b8b",
-      amount: "50",
-      interval: 1800, // 30 minutes
-      nextExecution: new Date(Date.now() - 60000), // 1 minute ago (ready to execute)
-      chainId: 421614,
-      isExecutable: true,
-    },
-  ]
+  const executePayment = async (paymentId: string) => {
+    setPayments((prev) => prev.map((p) => (p.id === paymentId ? { ...p, status: "executing", progress: 0 } : p)))
 
-  useEffect(() => {
-    if (isConnected) {
-      fetchPayments()
-    }
-  }, [isConnected, chainId])
-
-  const fetchPayments = async () => {
-    setIsLoading(true)
-    try {
-      // In a real implementation, this would fetch from the smart contract
-      // For demo purposes, we'll use mock data
-      const now = new Date()
-      const updatedPayments = mockPayments.map((payment) => ({
-        ...payment,
-        isExecutable: payment.nextExecution <= now,
-      }))
-      setPayments(updatedPayments)
-    } catch (error) {
-      console.error("Failed to fetch payments:", error)
-      setExecutionStatus("Failed to fetch scheduled payments")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleExecutePayment = async (payment: ScheduledPayment) => {
-    if (!isConnected || !account) {
-      setExecutionStatus("Please connect your wallet")
-      return
-    }
-
-    setExecutingPayments((prev) => new Set(prev).add(payment.id))
-    setExecutionStatus("")
-
-    try {
-      // Step 1: Switch to the correct chain if needed
-      if (chainId !== payment.chainId) {
-        setExecutionStatus(`Switching to ${getChainName(payment.chainId)}...`)
-        await switchChain(payment.chainId)
-        await new Promise((resolve) => setTimeout(resolve, 2000)) // Wait for chain switch
-      }
-
-      // Step 2: Check if payment is executable
-      if (!payment.isExecutable) {
-        throw new Error("Payment is not yet due for execution")
-      }
-
-      // Step 3: Simulate contract interaction
-      setExecutionStatus(`Executing payment ${payment.id}...`)
-
-      // In a real implementation, you would:
-      // 1. Check USDC balance and allowance
-      // 2. Approve USDC if needed
-      // 3. Call the executePayment function on the smart contract
-
-      // For demo purposes, simulate the execution
-      await simulatePaymentExecution(payment)
-
-      setExecutionStatus(`Payment ${payment.id} executed successfully! 🎉`)
-
-      // Update the payment status
+    // Simulate payment execution
+    const interval = setInterval(() => {
       setPayments((prev) =>
-        prev.map((p) =>
-          p.id === payment.id
-            ? {
+        prev.map((p) => {
+          if (p.id === paymentId && p.status === "executing") {
+            const newProgress = Math.min(p.progress + 10, 100)
+            if (newProgress === 100) {
+              clearInterval(interval)
+              return {
                 ...p,
-                nextExecution: new Date(p.nextExecution.getTime() + p.interval * 1000),
-                isExecutable: false,
+                status: "completed",
+                progress: 100,
+                txHash: `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 4)}`,
               }
-            : p,
-        ),
+            }
+            return { ...p, progress: newProgress }
+          }
+          return p
+        }),
       )
-    } catch (error: any) {
-      console.error("Payment execution failed:", error)
-      setExecutionStatus(`Failed to execute payment ${payment.id}: ${error.message}`)
-    } finally {
-      setExecutingPayments((prev) => {
-        const newSet = new Set(prev)
-        newSet.delete(payment.id)
-        return newSet
+    }, 500)
+  }
+
+  const pausePayment = (paymentId: string) => {
+    setPayments((prev) =>
+      prev.map((p) => (p.id === paymentId && p.status === "executing" ? { ...p, status: "pending" } : p)),
+    )
+  }
+
+  const cancelPayment = (paymentId: string) => {
+    setPayments((prev) =>
+      prev.map((p) => (p.id === paymentId ? { ...p, status: "failed", error: "Cancelled by user" } : p)),
+    )
+  }
+
+  const startAllPayments = () => {
+    setGlobalStatus("running")
+    payments
+      .filter((p) => p.status === "pending")
+      .forEach((p) => {
+        executePayment(p.id)
       })
+  }
+
+  const pauseAllPayments = () => {
+    setGlobalStatus("paused")
+    payments
+      .filter((p) => p.status === "executing")
+      .forEach((p) => {
+        pausePayment(p.id)
+      })
+  }
+
+  const getStatusIcon = (status: PaymentExecution["status"]) => {
+    switch (status) {
+      case "pending":
+        return <Clock className="w-4 h-4 text-yellow-400" />
+      case "executing":
+        return <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+      case "completed":
+        return <CheckCircle className="w-4 h-4 text-green-400" />
+      case "failed":
+        return <AlertCircle className="w-4 h-4 text-red-400" />
     }
   }
 
-  const simulatePaymentExecution = async (payment: ScheduledPayment): Promise<void> => {
-    // Simulate network delay and contract interaction
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-
-    // Simulate potential errors (10% chance)
-    if (Math.random() < 0.1) {
-      throw new Error("Insufficient USDC balance")
+  const getStatusColor = (status: PaymentExecution["status"]) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+      case "executing":
+        return "bg-blue-500/20 text-blue-400 border-blue-500/30"
+      case "completed":
+        return "bg-green-500/20 text-green-400 border-green-500/30"
+      case "failed":
+        return "bg-red-500/20 text-red-400 border-red-500/30"
     }
   }
 
-  const getChainName = (chainId: number): string => {
-    switch (chainId) {
-      case 11155111:
-        return "Ethereum Sepolia"
-      case 80001:
-        return "Polygon Mumbai"
-      case 421614:
-        return "Arbitrum Sepolia"
-      default:
-        return `Chain ${chainId}`
-    }
-  }
-
-  const getChainColor = (chainId: number): string => {
-    switch (chainId) {
-      case 11155111:
+  const getChainColor = (chain: string) => {
+    switch (chain) {
+      case "Ethereum":
         return "bg-blue-500"
-      case 80001:
+      case "Polygon":
         return "bg-purple-500"
-      case 421614:
-        return "bg-orange-500"
+      case "Arbitrum":
+        return "bg-cyan-500"
+      case "Optimism":
+        return "bg-red-500"
       default:
         return "bg-gray-500"
     }
   }
 
-  const isPaymentExecuting = (paymentId: number): boolean => {
-    return executingPayments.has(paymentId)
-  }
-
-  if (!isConnected) {
-    return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <AlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-xl font-semibold mb-2">Connect Your Wallet</h3>
-          <p className="text-gray-600">Connect MetaMask to view and execute scheduled payments</p>
-        </CardContent>
-      </Card>
-    )
-  }
+  const pendingCount = payments.filter((p) => p.status === "pending").length
+  const executingCount = payments.filter((p) => p.status === "executing").length
+  const completedCount = payments.filter((p) => p.status === "completed").length
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Play className="w-5 h-5" />
-            Execute Payments
-          </CardTitle>
-          <CardDescription>
-            Manually execute scheduled payments . In production, payments would be executed automatically using Chainlink Automation.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {executionStatus && (
-            <Alert className="mb-4">
-              <CheckCircle className="h-4 w-4" />
-              <AlertDescription>{executionStatus}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-            
-            <span>Smart contracts deployed on Sepolia, Mumbai, and Arbitrum Sepolia testnets</span>
+    <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Zap className="w-5 h-5 text-orange-400" />
+              Payment Executor
+            </CardTitle>
+            <CardDescription className="text-gray-400">Execute scheduled payments across chains</CardDescription>
           </div>
-        </CardContent>
-      </Card>
 
-      <div className="grid gap-4">
-        {isLoading ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p>Loading scheduled payments...</p>
-            </CardContent>
-          </Card>
-        ) : payments.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Clock className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-xl font-semibold mb-2">No Scheduled Payments</h3>
-              <p className="text-gray-600">Schedule your first payment to see it here</p>
-            </CardContent>
-          </Card>
-        ) : (
-          payments.map((payment) => (
-            <Card key={payment.id} className={payment.isExecutable ? "ring-2 ring-green-500" : ""}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${getChainColor(payment.chainId)}`} />
-                    <div>
-                      <h3 className="font-semibold">Payment #{payment.id}</h3>
-                      <p className="text-sm text-gray-600">
-                        To: {payment.recipient.slice(0, 6)}...{payment.recipient.slice(-4)}
-                      </p>
-                    </div>
-                  </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={startAllPayments}
+              disabled={pendingCount === 0 || globalStatus === "running"}
+              className="border-green-600 text-green-400 hover:bg-green-600/10 bg-transparent"
+            >
+              <Play className="w-4 h-4 mr-1" />
+              Start All
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={pauseAllPayments}
+              disabled={executingCount === 0}
+              className="border-yellow-600 text-yellow-400 hover:bg-yellow-600/10 bg-transparent"
+            >
+              <Pause className="w-4 h-4 mr-1" />
+              Pause All
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
 
-                  <div className="text-right">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg font-bold">${payment.amount} USDC</span>
-                      {payment.isExecutable && (
-                        <Badge variant="default" className="bg-green-500">
-                          Ready
-                        </Badge>
-                      )}
+      <CardContent className="space-y-4">
+        {/* Status Overview */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+            <div className="text-yellow-400 text-sm">Pending</div>
+            <div className="text-white text-2xl font-bold">{pendingCount}</div>
+          </div>
+          <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <div className="text-blue-400 text-sm">Executing</div>
+            <div className="text-white text-2xl font-bold">{executingCount}</div>
+          </div>
+          <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+            <div className="text-green-400 text-sm">Completed</div>
+            <div className="text-white text-2xl font-bold">{completedCount}</div>
+          </div>
+        </div>
+
+        {/* Payment Queue */}
+        <div className="space-y-3">
+          {payments.map((payment) => (
+            <div
+              key={payment.id}
+              className="p-4 rounded-lg bg-gray-800/50 border border-gray-700 hover:border-gray-600 transition-colors"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  {getStatusIcon(payment.status)}
+                  <div>
+                    <div className="text-white font-medium">{payment.amount} USDC</div>
+                    <div className="text-gray-400 text-sm">
+                      to {payment.recipient.slice(0, 6)}...{payment.recipient.slice(-4)}
                     </div>
-                    <p className="text-sm text-gray-600">{getChainName(payment.chainId)}</p>
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-600">Amount</p>
-                    <p className="font-medium">${payment.amount} USDC</p>
-                  </div>
-
-                  <div>
-                    <p className="text-gray-600">Interval</p>
-                    <p className="font-medium">{Math.floor(payment.interval / 3600)}h</p>
-                  </div>
-
-                  <div>
-                    <p className="text-gray-600">Next Execution</p>
-                    <p className="font-medium">{payment.nextExecution.toLocaleString()}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-gray-600">Status</p>
-                    <p className={`font-medium ${payment.isExecutable ? "text-green-600" : "text-orange-600"}`}>
-                      {payment.isExecutable ? "Ready" : "Pending"}
-                    </p>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${getChainColor(payment.chain)}`} />
+                  <span className="text-gray-300 text-sm">{payment.chain}</span>
+                  <Badge className={getStatusColor(payment.status)}>{payment.status}</Badge>
                 </div>
+              </div>
 
-                <div className="mt-4 flex justify-end">
+              {payment.status === "executing" && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Progress</span>
+                    <span className="text-white">{payment.progress}%</span>
+                  </div>
+                  <Progress value={payment.progress} className="h-2" />
+                  {payment.estimatedTime && (
+                    <div className="text-gray-400 text-xs">Est. {payment.estimatedTime}s remaining</div>
+                  )}
+                </div>
+              )}
+
+              {payment.txHash && (
+                <div className="mt-2 p-2 rounded bg-gray-700/50">
+                  <div className="text-gray-400 text-xs">Transaction Hash</div>
+                  <div className="text-blue-400 text-sm font-mono">{payment.txHash}</div>
+                </div>
+              )}
+
+              {payment.error && (
+                <Alert className="mt-2 border-red-500/50 bg-red-500/10">
+                  <AlertDescription className="text-red-400 text-sm">{payment.error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex gap-2 mt-3">
+                {payment.status === "pending" && (
                   <Button
-                    onClick={() => handleExecutePayment(payment)}
-                    disabled={!payment.isExecutable || isPaymentExecuting(payment.id)}
-                    variant={payment.isExecutable ? "default" : "secondary"}
                     size="sm"
+                    onClick={() => executePayment(payment.id)}
+                    className="bg-green-600 hover:bg-green-700 text-white"
                   >
-                    {isPaymentExecuting(payment.id) ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Executing...
-                      </>
-                    ) : payment.isExecutable ? (
-                      <>
-                        <Play className="w-4 h-4 mr-2" />
-                        Execute Payment
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="w-4 h-4 mr-2" />
-                        Not Due Yet
-                      </>
-                    )}
+                    <Play className="w-3 h-3 mr-1" />
+                    Execute
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                )}
+
+                {payment.status === "executing" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => pausePayment(payment.id)}
+                    className="border-yellow-600 text-yellow-400 hover:bg-yellow-600/10"
+                  >
+                    <Pause className="w-3 h-3 mr-1" />
+                    Pause
+                  </Button>
+                )}
+
+                {(payment.status === "pending" || payment.status === "executing") && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => cancelPayment(payment.id)}
+                    className="border-red-600 text-red-400 hover:bg-red-600/10"
+                  >
+                    <Square className="w-3 h-3 mr-1" />
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {payments.length === 0 && (
+          <div className="text-center py-8 text-gray-400">No payments scheduled for execution</div>
         )}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>How Manual Execution Works</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs">
-              1
-            </div>
-            <div>
-              <p className="font-medium">Payment Validation</p>
-              <p className="text-gray-600">
-                System checks if the payment's nextExecution timestamp has been reached and validates payment details
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs">
-              2
-            </div>
-            <div>
-              <p className="font-medium">Chain Switching & USDC Approval</p>
-              <p className="text-gray-600">
-                MetaMask switches to the correct chain and approves USDC spending if insufficient allowance
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs">
-              3
-            </div>
-            <div>
-              <p className="font-medium">Smart Contract Execution</p>
-              <p className="text-gray-600">
-                The executePayment function transfers USDC to the recipient and updates the next execution time
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Production: Chainlink Automation</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <p className="text-gray-600">
-            For production deployment, this manual execution would be replaced by <strong>Chainlink Automation</strong>,
-            which automatically executes payments when their scheduled time arrives. The smart contract includes{" "}
-            <code>checkUpkeep</code> and <code>performUpkeep</code> functions for this purpose.
-          </p>
-          <div className="bg-blue-50 p-3 rounded">
-            <p className="text-blue-800">
-              <strong>Demo Note:</strong> This interface demonstrates the manual execution flow. In production, users
-              would only need to schedule payments - execution would happen automatically via Chainlink Automation.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      </CardContent>
+    </Card>
   )
 }

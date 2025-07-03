@@ -1,10 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Wallet, Send, Clock, TrendingDown, CheckCircle, AlertCircle, Play } from "lucide-react"
 import { MetaMaskConnector } from "./components/metamask-connector"
 import { PaymentScheduler } from "./components/payment-scheduler"
 import { FeeOptimizer } from "./components/fee-optimizer"
@@ -16,181 +12,123 @@ import { LiFiIntegration } from "./components/lifi-integration"
 export default function USDCPaymentScheduler() {
   const { isConnected, account, chainId, connectWallet, switchChain } = useWallet()
   const [activeTab, setActiveTab] = useState("schedule")
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2 font-sans text-black shadow">Multichain USDC Payment Scheduler</h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Schedule recurring USDC payments across multiple blockchains with optimized fees using real-time gas price
-            data
-          </p>
-        </div>
-
-        {/* Connection Status */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <MetaMaskConnector />
-          </CardContent>
-        </Card>
-
-        {/* Main Content */}
-        {isConnected ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="schedule" className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Schedule
-              </TabsTrigger>
-              <TabsTrigger value="optimize" className="flex items-center gap-2">
-                <TrendingDown className="w-4 h-4" />
-                Optimize
-              </TabsTrigger>
-              <TabsTrigger value="execute" className="flex items-center gap-2">
-                <Play className="w-4 h-4" />
-                Execute
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" />
-                History
-              </TabsTrigger>
-              <TabsTrigger value="deploy" className="flex items-center gap-2">
-                <Send className="w-4 h-4" />
-                Deploy
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="schedule">
-              <PaymentScheduler />
-            </TabsContent>
-
-            <TabsContent value="optimize">
-              <div className="space-y-6">
-                <LiFiIntegration />
-                <FeeOptimizer />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="execute">
-              <PaymentExecutor />
-            </TabsContent>
-
-            <TabsContent value="history">
-              <PaymentHistory />
-            </TabsContent>
-
-            <TabsContent value="deploy">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Smart Contract Deployment</CardTitle>
-                  <CardDescription>Deploy and manage smart contracts across multiple chains</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Demo Mode:</strong> Smart contracts are pre-deployed on testnets. In production, this tab
-                      would allow deploying contracts to new chains and managing existing deployments.
-                    </AlertDescription>
-                  </Alert>
-
-                  <div className="mt-4 space-y-4">
-                    <div className="grid md:grid-cols-3 gap-4">
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-3 h-3 rounded-full bg-blue-500" />
-                            <h3 className="font-semibold">Ethereum Sepolia</h3>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">Contract: 0x...deployed</p>
-                          <p className="text-sm text-green-600">Active</p>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-3 h-3 rounded-full bg-purple-500" />
-                            <h3 className="font-semibold">Polygon Mumbai</h3>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">Contract: 0x...deployed</p>
-                          <p className="text-sm text-green-600">Active</p>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-3 h-3 rounded-full bg-orange-500" />
-                            <h3 className="font-semibold">Arbitrum Sepolia</h3>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">Contract: 0x...deployed</p>
-                          <p className="text-sm text-green-600">Active</p>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        ) : (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Wallet className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-xl font-semibold mb-2">Connect Your Wallet</h3>
-              <p className="text-gray-600 mb-4">Connect your MetaMask wallet to start scheduling USDC payments</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Features Overview */}
-        <div className="grid md:grid-cols-3 gap-6 mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-600" />
-                Smart Scheduling
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600">
-                Schedule recurring USDC payments with flexible intervals and automatic execution
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingDown className="w-5 h-5 text-green-600" />
-                Fee Optimization
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600">
-                Automatically select the lowest-cost blockchain for each payment using real-time gas data
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Send className="w-5 h-5 text-purple-600" />
-                Cross-Chain Support
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600">
-                Seamless USDC transfers across Ethereum, Polygon, and Arbitrum using Circle CCTP V2
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-blue-900/20">
+      {/* Animated Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-cyan-500/5 rounded-full blur-3xl animate-pulse delay-500" />
       </div>
+
+      {/* Header */}
+      <header className="relative z-10 border-b border-gray-800/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-xl">$</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">USDC Payment Scheduler</h1>
+                <p className="text-gray-400 text-sm">Multichain payment automation platform</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <div className="hidden md:flex items-center space-x-6 text-sm">
+                <a href="#" className="text-gray-300 hover:text-white transition-colors">
+                  Dashboard
+                </a>
+                <a href="#" className="text-gray-300 hover:text-white transition-colors">
+                  Payments
+                </a>
+                <a href="#" className="text-gray-300 hover:text-white transition-colors">
+                  Analytics
+                </a>
+                <a href="#" className="text-gray-300 hover:text-white transition-colors">
+                  Settings
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="relative z-10 py-20">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
+              Automate Your
+              <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                {" "}
+                USDC Payments
+              </span>
+            </h2>
+            <p className="text-xl text-gray-300 mb-8 leading-relaxed">
+              Schedule, optimize, and execute cross-chain USDC payments with intelligent fee optimization and seamless
+              multichain support powered by LI.FI infrastructure.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 transform hover:scale-105">
+                Get Started
+              </button>
+              <button className="px-8 py-4 border border-gray-600 text-gray-300 rounded-lg font-semibold hover:bg-gray-800 transition-all duration-200">
+                View Demo
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Content */}
+      <main className="relative z-10 max-w-7xl mx-auto px-4 pb-20">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column */}
+          <div className="lg:col-span-2 space-y-8">
+            <PaymentScheduler />
+            <PaymentExecutor />
+            <PaymentHistory />
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-8">
+            <MetaMaskConnector />
+            <FeeOptimizer />
+            <LiFiIntegration />
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-gray-800/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center space-x-4 mb-4 md:mb-0">
+              <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold">$</span>
+              </div>
+              <span className="text-gray-300">USDC Payment Scheduler</span>
+            </div>
+
+            <div className="flex items-center space-x-6 text-sm text-gray-400">
+              <a href="#" className="hover:text-white transition-colors">
+                Privacy
+              </a>
+              <a href="#" className="hover:text-white transition-colors">
+                Terms
+              </a>
+              <a href="#" className="hover:text-white transition-colors">
+                Support
+              </a>
+              <span>© 2024 All rights reserved</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
