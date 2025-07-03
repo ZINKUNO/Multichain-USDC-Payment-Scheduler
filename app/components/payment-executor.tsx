@@ -273,8 +273,7 @@ export function PaymentExecutor() {
             Execute Payments
           </CardTitle>
           <CardDescription>
-            Manually execute scheduled payments (Demo mode). In production, payments would be executed automatically
-            using Chainlink Automation.
+            Manually execute scheduled payments . In production, payments would be executed automatically using Chainlink Automation.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -286,7 +285,7 @@ export function PaymentExecutor() {
           )}
 
           <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-            <ExternalLink className="w-4 h-4" />
+            
             <span>Smart contracts deployed on Sepolia, Mumbai, and Arbitrum Sepolia testnets</span>
           </div>
         </CardContent>

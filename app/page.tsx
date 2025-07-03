@@ -11,6 +11,7 @@ import { FeeOptimizer } from "./components/fee-optimizer"
 import { PaymentHistory } from "./components/payment-history"
 import { PaymentExecutor } from "./components/payment-executor"
 import { useWallet } from "./hooks/use-wallet"
+import { LiFiIntegration } from "./components/lifi-integration"
 
 export default function USDCPaymentScheduler() {
   const { isConnected, account, chainId, connectWallet, switchChain } = useWallet()
@@ -21,7 +22,7 @@ export default function USDCPaymentScheduler() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Multichain USDC Payment Scheduler</h1>
+          <h1 className="text-4xl font-bold mb-2 font-sans text-black shadow">Multichain USDC Payment Scheduler</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Schedule recurring USDC payments across multiple blockchains with optimized fees using real-time gas price
             data
@@ -66,7 +67,10 @@ export default function USDCPaymentScheduler() {
             </TabsContent>
 
             <TabsContent value="optimize">
-              <FeeOptimizer />
+              <div className="space-y-6">
+                <LiFiIntegration />
+                <FeeOptimizer />
+              </div>
             </TabsContent>
 
             <TabsContent value="execute">
@@ -101,7 +105,7 @@ export default function USDCPaymentScheduler() {
                             <h3 className="font-semibold">Ethereum Sepolia</h3>
                           </div>
                           <p className="text-sm text-gray-600 mb-2">Contract: 0x...deployed</p>
-                          <p className="text-sm text-green-600">✅ Active</p>
+                          <p className="text-sm text-green-600">Active</p>
                         </CardContent>
                       </Card>
 
@@ -112,7 +116,7 @@ export default function USDCPaymentScheduler() {
                             <h3 className="font-semibold">Polygon Mumbai</h3>
                           </div>
                           <p className="text-sm text-gray-600 mb-2">Contract: 0x...deployed</p>
-                          <p className="text-sm text-green-600">✅ Active</p>
+                          <p className="text-sm text-green-600">Active</p>
                         </CardContent>
                       </Card>
 
@@ -123,7 +127,7 @@ export default function USDCPaymentScheduler() {
                             <h3 className="font-semibold">Arbitrum Sepolia</h3>
                           </div>
                           <p className="text-sm text-gray-600 mb-2">Contract: 0x...deployed</p>
-                          <p className="text-sm text-green-600">✅ Active</p>
+                          <p className="text-sm text-green-600">Active</p>
                         </CardContent>
                       </Card>
                     </div>

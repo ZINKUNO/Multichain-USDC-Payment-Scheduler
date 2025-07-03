@@ -1,4 +1,7 @@
 // Fee Optimization Service using LI.FI SDK and Etherscan Gas Tracker
+// Import the LI.FI service
+import { lifiService } from "./lifi-integration"
+
 export interface ChainFeeData {
   chainId: number
   name: string
@@ -30,11 +33,17 @@ const USDC_ADDRESSES = {
   421614: "0x75faf114eafb1BDbe6fc3363c7f609b9d5a8f3dA", // Arbitrum Sepolia
 }
 
+// Update the FeeOptimizer class constructor
 export class FeeOptimizer {
-  private lifiIntegratorId: string
+  private lifiApiKey: string
+  private integratorId: string
 
-  constructor(lifiIntegratorId = "usdc-payment-scheduler") {
-    this.lifiIntegratorId = lifiIntegratorId
+  constructor(
+    lifiApiKey = "77ad3ad2-7cc8-47b5-bf30-01dde38aa7ce.a5aed5a5-a4c3-4d58-ad87-031f5bfe4b17",
+    integratorId = "usdc-payment-scheduler",
+  ) {
+    this.lifiApiKey = lifiApiKey
+    this.integratorId = integratorId
   }
 
   async optimizeFees(amount = "100", fromAddress?: string, toAddress?: string): Promise<FeeOptimizationResult> {
@@ -127,19 +136,69 @@ export class FeeOptimizer {
     }
   }
 
+  // Update the getLiFiQuote method to use real API
   private async getLiFiQuote(
     chainId: number,
     amount: string,
-    fromAddress: string,
-    toAddress: string,
+    fromAddress?: string,
+    toAddress?: string,
   ): Promise<{ gasPrice: number; estimatedFee: number; transferTime: number } | null> {
     try {
-      // Note: LI.FI SDK integration would go here
-      // For now, return null to use fallback methods
+      // For same-chain transfers, get gas prices
+      const gasData = await lifiService.getGasPrices(chainId)
+      if (gasData) {
+        return {
+          gasPrice: Number.parseFloat(gasData.gasPrice),
+          estimatedFee: gasData.estimatedFee,
+          transferTime: this.getEstimatedTransferTime(chainId),
+        }
+      }
+
+      // For cross-chain transfers, get quotes between chains
+      if (fromAddress && toAddress) {
+        const usdcAddress = USDC_ADDRESSES[chainId as keyof typeof USDC_ADDRESSES]
+        if (usdcAddress) {
+          // Convert amount to wei (USDC has 6 decimals)
+          const amountWei = (Number.parseFloat(amount) * 1e6).toString()
+
+          const quote = await lifiService.getQuote(
+            chainId,
+            chainId, // Same chain for now
+            usdcAddress,
+            usdcAddress,
+            amountWei,
+            fromAddress,
+          )
+
+          if (quote?.estimate) {
+            const gasCost = quote.estimate.gasCosts[0]
+            const gasAmount = Number.parseFloat(gasCost.amount) / Math.pow(10, gasCost.token.decimals)
+
+            return {
+              gasPrice: gasAmount,
+              estimatedFee: gasAmount * 2000, // Rough USD conversion
+              transferTime: quote.estimate.executionDuration || this.getEstimatedTransferTime(chainId),
+            }
+          }
+        }
+      }
+
       return null
     } catch (error) {
       console.error("LI.FI quote failed:", error)
       return null
+    }
+  }
+
+  // Add helper method for transfer time estimation
+  private getEstimatedTransferTime(chainId: number): number {
+    switch (chainId) {
+      case 80001: // Mumbai
+        return 30 + Math.random() * 60 // 30-90 seconds
+      case 421614: // Arbitrum Sepolia
+        return 60 + Math.random() * 120 // 60-180 seconds
+      default: // Ethereum Sepolia
+        return 180 + Math.random() * 300 // 180-480 seconds
     }
   }
 

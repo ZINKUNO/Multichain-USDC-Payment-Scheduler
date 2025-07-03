@@ -69,8 +69,8 @@ export function FeeOptimizer() {
           )}
 
           <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-            <ExternalLink className="w-4 h-4" />
-            <span>Powered by Etherscan.io APIs</span>
+            
+            <span>{""}</span>
           </div>
         </CardContent>
       </Card>
