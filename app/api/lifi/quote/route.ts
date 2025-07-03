@@ -1,30 +1,35 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 
-const LIFI_API_KEY = process.env.LIFI_API_KEY
 const LIFI_BASE_URL = "https://li.quest/v1"
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json()
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "x-lifi-integrator": process.env.LIFI_INTEGRATOR_ID || "usdc-payment-scheduler",
+    }
+
+    if (process.env.LIFI_API_KEY) {
+      headers["x-lifi-api-key"] = process.env.LIFI_API_KEY
+    }
+
     const response = await fetch(`${LIFI_BASE_URL}/quote`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(LIFI_API_KEY && { "x-lifi-api-key": LIFI_API_KEY }),
-        "x-lifi-integrator": process.env.LIFI_INTEGRATOR_ID || "usdc-payment-scheduler",
-      },
+      headers,
       body: JSON.stringify(body),
     })
 
-    if (!response.ok) {
-      throw new Error(`LI.FI API error: ${response.status}`)
+    if (response.ok) {
+      const data = await response.json()
+      return NextResponse.json(data)
     }
 
-    const data = await response.json()
-    return NextResponse.json(data)
+    throw new Error(`HTTP ${response.status}`)
   } catch (error) {
-    console.error("Failed to get LiFi quote:", error)
+    console.error("LiFi quote failed:", error)
+
     return NextResponse.json({ error: "Failed to get quote" }, { status: 500 })
   }
 }

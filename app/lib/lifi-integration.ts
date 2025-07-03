@@ -1,47 +1,3 @@
-// Client-side LI.FI integration without sensitive API keys
-export interface LiFiChain {
-  id: number
-  name: string
-  key: string
-  chainType: string
-  nativeToken: {
-    symbol: string
-    decimals: number
-  }
-}
-
-export interface LiFiToken {
-  address: string
-  symbol: string
-  decimals: number
-  chainId: number
-  name: string
-  logoURI?: string
-}
-
-export interface LiFiQuote {
-  estimate: {
-    fromAmount: string
-    toAmount: string
-    gasCosts: Array<{
-      amount: string
-      token: LiFiToken
-    }>
-  }
-  transactionRequest?: {
-    gasLimit: string
-    gasPrice: string
-  }
-}
-
-export interface GasPriceData {
-  chainId: number
-  chainName: string
-  gasPrice: string
-  gasPriceUsd: number
-  recommended: boolean
-}
-
 export interface LiFiStatus {
   isConnected: boolean
   responseTime: number
@@ -50,90 +6,65 @@ export interface LiFiStatus {
   lastChecked: Date
 }
 
-// Client-side service that calls server actions
-export class LiFiService {
+export interface GasPrice {
+  chainId: number
+  chainName: string
+  gasPrice: string
+  gasPriceUsd: number
+  recommended: boolean
+}
+
+class LiFiService {
   async getStatus(): Promise<LiFiStatus> {
+    const startTime = Date.now()
+
     try {
       const response = await fetch("/api/lifi/status")
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      const data = await response.json()
-      return {
-        ...data,
-        lastChecked: new Date(data.lastChecked),
+      const responseTime = Date.now() - startTime
+
+      if (response.ok) {
+        const data = await response.json()
+        return {
+          isConnected: true,
+          responseTime,
+          supportedChains: data.supportedChains || 15,
+          supportedTools: data.supportedTools || 25,
+          lastChecked: new Date(),
+        }
       }
     } catch (error) {
-      console.error("Failed to get LiFi status:", error)
-      return {
-        isConnected: false,
-        responseTime: 0,
-        supportedChains: 0,
-        supportedTools: 0,
-        lastChecked: new Date(),
-      }
+      console.error("LiFi status check failed:", error)
+    }
+
+    // Fallback data
+    return {
+      isConnected: false,
+      responseTime: Date.now() - startTime,
+      supportedChains: 15,
+      supportedTools: 25,
+      lastChecked: new Date(),
     }
   }
 
-  async getGasPrices(): Promise<GasPriceData[]> {
+  async getGasPrices(): Promise<GasPrice[]> {
     try {
       const response = await fetch("/api/lifi/gas-prices")
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      if (response.ok) {
+        return await response.json()
       }
-      return await response.json()
     } catch (error) {
-      console.error("Failed to get gas prices:", error)
-      // Return fallback data
-      return this.getFallbackGasPrices()
+      console.error("Failed to fetch gas prices:", error)
     }
-  }
 
-  async getQuote(params: {
-    fromChain: number
-    toChain: number
-    fromToken: string
-    toToken: string
-    fromAmount: string
-    fromAddress?: string
-  }): Promise<LiFiQuote | null> {
-    try {
-      const response = await fetch("/api/lifi/quote", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(params),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error("Failed to get quote:", error)
-      return null
-    }
-  }
-
-  private getFallbackGasPrices(): GasPriceData[] {
-    const chains = [
-      { id: 1, name: "Ethereum", gasPrice: 25, usdPrice: 2400 },
-      { id: 137, name: "Polygon", gasPrice: 30, usdPrice: 1.0 },
-      { id: 42161, name: "Arbitrum", gasPrice: 0.1, usdPrice: 2400 },
-      { id: 10, name: "Optimism", gasPrice: 0.001, usdPrice: 2400 },
-      { id: 56, name: "BSC", gasPrice: 5, usdPrice: 300 },
-      { id: 43114, name: "Avalanche", gasPrice: 25, usdPrice: 35 },
+    // Fallback data
+    return [
+      { chainId: 137, chainName: "Polygon", gasPrice: "30", gasPriceUsd: 0.03, recommended: true },
+      { chainId: 42161, chainName: "Arbitrum", gasPrice: "0.1", gasPriceUsd: 0.24, recommended: true },
+      { chainId: 10, chainName: "Optimism", gasPrice: "0.001", gasPriceUsd: 0.0024, recommended: true },
+      { chainId: 56, chainName: "BSC", gasPrice: "5", gasPriceUsd: 1.5, recommended: false },
+      { chainId: 43114, chainName: "Avalanche", gasPrice: "25", gasPriceUsd: 0.875, recommended: false },
+      { chainId: 1, chainName: "Ethereum", gasPrice: "25", gasPriceUsd: 6.0, recommended: false },
     ]
-
-    return chains.map((chain) => ({
-      chainId: chain.id,
-      chainName: chain.name,
-      gasPrice: chain.gasPrice.toString(),
-      gasPriceUsd: chain.gasPrice * 0.000001 * chain.usdPrice,
-      recommended: chain.gasPrice < 20,
-    }))
   }
 }
 

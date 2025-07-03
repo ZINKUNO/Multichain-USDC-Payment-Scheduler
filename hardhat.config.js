@@ -27,12 +27,12 @@ module.exports = {
       chainId: 31337,
     },
     sepolia: {
-      url: SEPOLIA_RPC_URL || "https://eth-sepolia.g.alchemy.com/v2/demo",
+      url: SEPOLIA_RPC_URL || "https://sepolia.infura.io/v3/",
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
       chainId: 11155111,
     },
     mumbai: {
-      url: MUMBAI_RPC_URL || "https://polygon-mumbai.g.alchemy.com/v2/demo",
+      url: MUMBAI_RPC_URL || "https://rpc-mumbai.maticvigil.com/",
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
       chainId: 80001,
     },

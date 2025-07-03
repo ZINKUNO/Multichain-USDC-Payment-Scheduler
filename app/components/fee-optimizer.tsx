@@ -35,18 +35,6 @@ export function FeeOptimizer() {
     return () => clearInterval(interval)
   }, [])
 
-  const getChainColor = (chainId: number) => {
-    const colors: Record<number, string> = {
-      1: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-      137: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-      42161: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-      10: "bg-red-500/20 text-red-400 border-red-500/30",
-      56: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-      43114: "bg-green-500/20 text-green-400 border-green-500/30",
-    }
-    return colors[chainId] || "bg-gray-500/20 text-gray-400 border-gray-500/30"
-  }
-
   if (loading) {
     return (
       <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">

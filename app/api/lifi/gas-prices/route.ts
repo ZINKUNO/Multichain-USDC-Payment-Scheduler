@@ -22,13 +22,18 @@ const SUPPORTED_CHAINS = [
 
 async function getQuoteForGasEstimation(chainId: number) {
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "x-lifi-integrator": process.env.LIFI_INTEGRATOR_ID || "usdc-payment-scheduler",
+    }
+
+    if (LIFI_API_KEY) {
+      headers["x-lifi-api-key"] = LIFI_API_KEY
+    }
+
     const response = await fetch(`${LIFI_BASE_URL}/quote`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(LIFI_API_KEY && { "x-lifi-api-key": LIFI_API_KEY }),
-        "x-lifi-integrator": process.env.LIFI_INTEGRATOR_ID || "usdc-payment-scheduler",
-      },
+      headers,
       body: JSON.stringify({
         fromChain: chainId,
         toChain: chainId,
