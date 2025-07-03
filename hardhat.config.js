@@ -11,22 +11,34 @@ const {
   ARBISCAN_API_KEY,
 } = process.env
 
+/** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.28",
+  solidity: {
+    version: "0.8.19",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
   networks: {
+    hardhat: {
+      chainId: 31337,
+    },
     sepolia: {
-      url: SEPOLIA_RPC_URL,
-      accounts: [PRIVATE_KEY],
+      url: SEPOLIA_RPC_URL || "https://eth-sepolia.g.alchemy.com/v2/demo",
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
       chainId: 11155111,
     },
     mumbai: {
-      url: MUMBAI_RPC_URL,
-      accounts: [PRIVATE_KEY],
+      url: MUMBAI_RPC_URL || "https://polygon-mumbai.g.alchemy.com/v2/demo",
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
       chainId: 80001,
     },
     arbitrumSepolia: {
-      url: ARBITRUM_SEPOLIA_RPC_URL,
-      accounts: [PRIVATE_KEY],
+      url: ARBITRUM_SEPOLIA_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc",
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
       chainId: 421614,
     },
   },
@@ -36,23 +48,11 @@ module.exports = {
       polygonMumbai: POLYGONSCAN_API_KEY,
       arbitrumSepolia: ARBISCAN_API_KEY,
     },
-    customChains: [
-      {
-        network: "arbitrumSepolia",
-        chainId: 421614,
-        urls: {
-          apiURL: "https://api-sepolia.arbiscan.io/api",
-          browserURL: "https://sepolia.arbiscan.io",
-        },
-      },
-      {
-        network: "polygonMumbai",
-        chainId: 80001,
-        urls: {
-          apiURL: "https://api-mumbai.polygonscan.com/api",
-          browserURL: "https://mumbai.polygonscan.com",
-        },
-      },
-    ],
+  },
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts",
   },
 }

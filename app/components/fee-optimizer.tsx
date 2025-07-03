@@ -2,105 +2,68 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { RefreshCw, TrendingDown, TrendingUp, Zap, DollarSign } from "lucide-react"
-import {
-  fetchFeeData,
-  optimizeFees,
-  formatGasPrice,
-  formatCurrency,
-  type FeeData,
-  type OptimizationResult,
-} from "@/app/lib/fee-optimizer"
+import { TrendingDown, RefreshCw, Zap, DollarSign, Clock } from "lucide-react"
+import { feeOptimizer, type FeeOptimization } from "@/app/lib/fee-optimizer"
 
 export function FeeOptimizer() {
-  const [feeData, setFeeData] = useState<FeeData[]>([])
-  const [optimization, setOptimization] = useState<OptimizationResult | null>(null)
+  const [optimization, setOptimization] = useState<FeeOptimization | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const loadFeeData = async () => {
+  const fetchOptimization = async () => {
     try {
-      setLoading(true)
-      setError(null)
-
-      const [fees, optimizationResult] = await Promise.all([
-        fetchFeeData([1, 137, 42161, 10]),
-        optimizeFees([1, 137, 42161, 10]),
-      ])
-
-      setFeeData(fees)
-      setOptimization(optimizationResult)
-      setLastUpdated(new Date())
-    } catch (err) {
-      setError("Failed to load fee data. Please try again.")
-      console.error("Fee optimization error:", err)
+      setRefreshing(true)
+      const result = await feeOptimizer.getOptimizedFees()
+      setOptimization(result)
+    } catch (error) {
+      console.error("Failed to fetch fee optimization:", error)
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
   useEffect(() => {
-    loadFeeData()
+    fetchOptimization()
 
     // Auto-refresh every 30 seconds
-    const interval = setInterval(loadFeeData, 30000)
+    const interval = setInterval(fetchOptimization, 30000)
     return () => clearInterval(interval)
   }, [])
 
-  const getRecommendationColor = (recommendation: string) => {
-    switch (recommendation) {
-      case "low":
-        return "bg-green-500/20 text-green-400 border-green-500/30"
-      case "medium":
-        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-      case "high":
-        return "bg-red-500/20 text-red-400 border-red-500/30"
-      default:
-        return "bg-gray-500/20 text-gray-400 border-gray-500/30"
+  const getChainColor = (chainId: number) => {
+    const colors: Record<number, string> = {
+      1: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+      137: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+      42161: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+      10: "bg-red-500/20 text-red-400 border-red-500/30",
+      56: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+      43114: "bg-green-500/20 text-green-400 border-green-500/30",
     }
+    return colors[chainId] || "bg-gray-500/20 text-gray-400 border-gray-500/30"
   }
 
-  const getRecommendationIcon = (recommendation: string) => {
-    switch (recommendation) {
-      case "low":
-        return <TrendingDown className="w-3 h-3" />
-      case "medium":
-        return <Zap className="w-3 h-3" />
-      case "high":
-        return <TrendingUp className="w-3 h-3" />
-      default:
-        return null
-    }
-  }
-
-  if (loading && feeData.length === 0) {
+  if (loading) {
     return (
       <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-purple-400" />
+            <TrendingDown className="h-5 w-5" />
             Fee Optimizer
           </CardTitle>
-          <CardDescription className="text-gray-400">Analyzing cross-chain gas fees...</CardDescription>
+          <CardDescription className="text-gray-400">Finding the best rates across chains...</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex items-center justify-between p-4 rounded-lg bg-gray-800/50">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24 bg-gray-700" />
-                <Skeleton className="h-3 w-16 bg-gray-700" />
-              </div>
-              <div className="text-right space-y-2">
-                <Skeleton className="h-4 w-20 bg-gray-700" />
-                <Skeleton className="h-3 w-12 bg-gray-700" />
-              </div>
-            </div>
-          ))}
+          <Skeleton className="h-20 w-full bg-gray-800" />
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-12 w-full bg-gray-800" />
+            ))}
+          </div>
         </CardContent>
       </Card>
     )
@@ -112,80 +75,100 @@ export function FeeOptimizer() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-white flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-purple-400" />
+              <TrendingDown className="h-5 w-5" />
               Fee Optimizer
             </CardTitle>
-            <CardDescription className="text-gray-400">Compare gas fees across chains</CardDescription>
+            <CardDescription className="text-gray-400">Real-time gas price comparison across chains</CardDescription>
           </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={loadFeeData}
-            disabled={loading}
+            onClick={fetchOptimization}
+            disabled={refreshing}
             className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {error && (
-          <Alert className="border-red-500/50 bg-red-500/10">
-            <AlertDescription className="text-red-400">{error}</AlertDescription>
-          </Alert>
-        )}
-
+      <CardContent className="space-y-6">
         {optimization && (
-          <div className="p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-white font-medium">Recommended Chain</h3>
-                <p className="text-gray-400 text-sm">
-                  {feeData.find((f) => f.chainId === optimization.recommendedChain)?.chainName}
-                </p>
+          <>
+            {/* Recommended Chain */}
+            <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-green-400" />
+                  <span className="font-medium text-green-300">Recommended Chain</span>
+                </div>
+                <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Best Value</Badge>
               </div>
-              <div className="text-right">
-                <div className="text-green-400 font-medium">Save {optimization.savings}</div>
-                <div className="text-gray-400 text-sm">vs most expensive</div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        <div className="space-y-3">
-          {feeData.map((fee) => (
-            <div
-              key={fee.chainId}
-              className={`p-4 rounded-lg border transition-all duration-200 hover:scale-[1.02] ${
-                optimization?.recommendedChain === fee.chainId
-                  ? "bg-purple-500/10 border-purple-500/30"
-                  : "bg-gray-800/50 border-gray-700"
-              }`}
-            >
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-white font-medium">{fee.chainName}</h4>
-                    <Badge className={getRecommendationColor(fee.recommendation)}>
-                      {getRecommendationIcon(fee.recommendation)}
-                      {fee.recommendation}
-                    </Badge>
-                  </div>
-                  <p className="text-gray-400 text-sm">{formatGasPrice(fee.gasPrice)} gwei</p>
+                <div>
+                  <h3 className="text-white font-semibold text-lg">{optimization.recommendedChainName}</h3>
+                  <p className="text-green-200 text-sm">
+                    Save up to ${optimization.estimatedSavingsUsd.toFixed(2)} (
+                    {optimization.estimatedSavings.toFixed(1)}%)
+                  </p>
                 </div>
-
-                <div className="text-right space-y-1">
-                  <div className="text-white font-medium">{formatCurrency(fee.estimatedCost, fee.currency)}</div>
-                  {fee.usdValue && <div className="text-gray-400 text-sm">≈ ${fee.usdValue.toFixed(2)}</div>}
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-green-400">{optimization.estimatedSavings.toFixed(0)}%</div>
+                  <div className="text-sm text-green-300">savings</div>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
 
-        {lastUpdated && (
-          <div className="text-center text-gray-500 text-xs">Last updated: {lastUpdated.toLocaleTimeString()}</div>
+            {/* All Chain Costs */}
+            <div className="space-y-3">
+              <h4 className="text-white font-medium flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                All Chain Costs
+              </h4>
+
+              {optimization.allChainCosts.map((chain, index) => (
+                <div
+                  key={chain.chainId}
+                  className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50 border border-gray-700"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-3 h-3 rounded-full ${
+                          index === 0 ? "bg-green-400" : index === 1 ? "bg-yellow-400" : "bg-red-400"
+                        }`}
+                      />
+                      <span className="text-white font-medium">{chain.chainName}</span>
+                    </div>
+                    {chain.recommended && (
+                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">Recommended</Badge>
+                    )}
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-white font-medium">${chain.gasPriceUsd.toFixed(4)}</div>
+                    <div className="text-gray-400 text-sm">{Number.parseFloat(chain.gasPrice).toFixed(2)} gwei</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Savings Progress */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Potential Savings</span>
+                <span className="text-white">{optimization.estimatedSavings.toFixed(1)}%</span>
+              </div>
+              <Progress value={Math.min(optimization.estimatedSavings, 100)} className="bg-gray-800" />
+            </div>
+
+            {/* Last Updated */}
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+              <Clock className="h-3 w-3" />
+              Last updated: {optimization.lastUpdated.toLocaleTimeString()}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

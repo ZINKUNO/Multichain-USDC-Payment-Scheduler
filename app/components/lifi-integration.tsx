@@ -5,47 +5,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle, XCircle, RefreshCw, Activity, Link, Zap } from "lucide-react"
-import { lifiService } from "@/app/lib/lifi-integration"
-
-interface IntegrationStatus {
-  isHealthy: boolean
-  chains: number
-  tools: number
-  lastChecked: Date
-  responseTime?: number
-}
+import { Activity, RefreshCw, Zap, Network, Clock } from "lucide-react"
+import { lifiService, type LiFiStatus } from "@/app/lib/lifi-integration"
 
 export function LiFiIntegration() {
-  const [status, setStatus] = useState<IntegrationStatus | null>(null)
+  const [status, setStatus] = useState<LiFiStatus | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [checking, setChecking] = useState(false)
 
   const checkStatus = async () => {
     try {
-      setLoading(true)
-      setError(null)
-
-      const startTime = Date.now()
-      const statusData = await lifiService.getStatus()
-      const responseTime = Date.now() - startTime
-
-      setStatus({
-        ...statusData,
-        lastChecked: new Date(),
-        responseTime,
-      })
-    } catch (err) {
-      setError("Failed to check LI.FI integration status")
-      setStatus({
-        isHealthy: false,
-        chains: 0,
-        tools: 0,
-        lastChecked: new Date(),
-      })
+      setChecking(true)
+      const result = await lifiService.getStatus()
+      setStatus(result)
+    } catch (error) {
+      console.error("Failed to check LiFi status:", error)
     } finally {
       setLoading(false)
+      setChecking(false)
     }
   }
 
@@ -57,40 +34,34 @@ export function LiFiIntegration() {
     return () => clearInterval(interval)
   }, [])
 
-  const getStatusColor = (isHealthy: boolean) => {
-    return isHealthy
+  const getStatusColor = (isConnected: boolean) => {
+    return isConnected
       ? "bg-green-500/20 text-green-400 border-green-500/30"
       : "bg-red-500/20 text-red-400 border-red-500/30"
   }
 
-  const getStatusIcon = (isHealthy: boolean) => {
-    return isHealthy ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />
+  const getResponseTimeColor = (responseTime: number) => {
+    if (responseTime < 1000) return "text-green-400"
+    if (responseTime < 3000) return "text-yellow-400"
+    return "text-red-400"
   }
 
-  if (loading && !status) {
+  if (loading) {
     return (
       <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Link className="w-5 h-5 text-blue-400" />
-            LI.FI Integration
+            <Activity className="h-5 w-5" />
+            LiFi Integration
           </CardTitle>
-          <CardDescription className="text-gray-400">Checking cross-chain infrastructure...</CardDescription>
+          <CardDescription className="text-gray-400">Cross-chain bridge connectivity status</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-4 w-24 bg-gray-700" />
-            <Skeleton className="h-6 w-16 bg-gray-700" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Skeleton className="h-3 w-16 bg-gray-700" />
-              <Skeleton className="h-6 w-8 bg-gray-700" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-3 w-16 bg-gray-700" />
-              <Skeleton className="h-6 w-8 bg-gray-700" />
-            </div>
+          <Skeleton className="h-16 w-full bg-gray-800" />
+          <div className="grid grid-cols-3 gap-4">
+            <Skeleton className="h-12 bg-gray-800" />
+            <Skeleton className="h-12 bg-gray-800" />
+            <Skeleton className="h-12 bg-gray-800" />
           </div>
         </CardContent>
       </Card>
@@ -103,70 +74,101 @@ export function LiFiIntegration() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-white flex items-center gap-2">
-              <Link className="w-5 h-5 text-blue-400" />
-              LI.FI Integration
+              <Activity className="h-5 w-5" />
+              LiFi Integration
             </CardTitle>
-            <CardDescription className="text-gray-400">Cross-chain infrastructure status</CardDescription>
+            <CardDescription className="text-gray-400">Cross-chain bridge connectivity and performance</CardDescription>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={checkStatus}
-            disabled={loading}
+            disabled={checking}
             className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${checking ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </CardHeader>
-
-      <CardContent className="space-y-4">
-        {error && (
-          <Alert className="border-red-500/50 bg-red-500/10">
-            <AlertDescription className="text-red-400">{error}</AlertDescription>
-          </Alert>
-        )}
-
+      <CardContent className="space-y-6">
         {status && (
           <>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-300">API Status</span>
+            {/* Connection Status */}
+            <div className="flex items-center justify-between p-4 rounded-lg bg-gray-800/50 border border-gray-700">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-3 h-3 rounded-full ${status.isConnected ? "bg-green-400" : "bg-red-400"} animate-pulse`}
+                />
+                <span className="text-white font-medium">API Connection</span>
               </div>
-              <Badge className={getStatusColor(status.isHealthy)}>
-                {getStatusIcon(status.isHealthy)}
-                {status.isHealthy ? "Healthy" : "Offline"}
+              <Badge className={getStatusColor(status.isConnected)}>
+                {status.isConnected ? "Connected" : "Disconnected"}
               </Badge>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 rounded-lg bg-gray-800/50">
-                <div className="text-gray-400 text-sm">Supported Chains</div>
-                <div className="text-white text-2xl font-bold">{status.chains}</div>
+            {/* Performance Metrics */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700 text-center">
+                <Clock className="h-5 w-5 mx-auto mb-2 text-gray-400" />
+                <p className="text-sm text-gray-400">Response Time</p>
+                <p className={`text-lg font-bold ${getResponseTimeColor(status.responseTime)}`}>
+                  {status.responseTime}ms
+                </p>
               </div>
 
-              <div className="p-3 rounded-lg bg-gray-800/50">
-                <div className="text-gray-400 text-sm">Available Tools</div>
-                <div className="text-white text-2xl font-bold">{status.tools}</div>
+              <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700 text-center">
+                <Network className="h-5 w-5 mx-auto mb-2 text-gray-400" />
+                <p className="text-sm text-gray-400">Supported Chains</p>
+                <p className="text-lg font-bold text-blue-400">{status.supportedChains}</p>
+              </div>
+
+              <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700 text-center">
+                <Zap className="h-5 w-5 mx-auto mb-2 text-gray-400" />
+                <p className="text-sm text-gray-400">Bridge Tools</p>
+                <p className="text-lg font-bold text-purple-400">{status.supportedTools}</p>
               </div>
             </div>
 
-            {status.responseTime && (
-              <div className="p-3 rounded-lg bg-gray-800/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-yellow-400" />
-                    <span className="text-gray-300">Response Time</span>
-                  </div>
-                  <span className="text-white font-medium">{status.responseTime}ms</span>
+            {/* Status Details */}
+            <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
+              <h4 className="text-white font-medium mb-3">Integration Details</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Last Health Check:</span>
+                  <span className="text-white">{status.lastChecked.toLocaleTimeString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">API Version:</span>
+                  <span className="text-white">v3.0.0</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Integration Status:</span>
+                  <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
+                    Active
+                  </Badge>
                 </div>
               </div>
-            )}
-
-            <div className="text-center text-gray-500 text-xs">
-              Last checked: {status.lastChecked.toLocaleTimeString()}
             </div>
+
+            {/* Quick Actions */}
+            {status.isConnected && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800 flex-1 bg-transparent"
+                >
+                  View Supported Chains
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800 flex-1 bg-transparent"
+                >
+                  Test Bridge Quote
+                </Button>
+              </div>
+            )}
           </>
         )}
       </CardContent>
